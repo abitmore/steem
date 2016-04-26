@@ -895,7 +895,7 @@ void database::update_witness_schedule()
       vector<string> active_witnesses;
       active_witnesses.reserve( STEEMIT_MAX_MINERS );
 
-      fc::uint128 new_virtual_time;
+      fc::uint128 new_virtual_time = wso.current_virtual_time;
 
       /// only use vote based scheduling after the first 1M STEEM is created or if there is no POW queued
       if( props.num_pow_witnesses == 0 || head_block_num() > STEEMIT_START_MINER_VOTING_BLOCK )
@@ -904,23 +904,25 @@ void database::update_witness_schedule()
 
          for( auto itr = widx.begin(); itr != widx.end() && (active_witnesses.size() < (STEEMIT_MAX_MINERS-2)); ++itr ) {
             if( itr->pow_worker ) continue;
-
             active_witnesses.push_back(itr->owner);
-
-            /// don't consider the top 19 for the purpose of virtual time scheduling
-            modify( *itr, [&]( witness_object& wo ) { wo.virtual_scheduled_time = fc::uint128::max_value(); } );
          }
 
          /// add the virtual scheduled witness, reseeting their position to 0 and their time to completion
          const auto& schedule_idx = get_index_type<witness_index>().indices().get<by_schedule_time>();
          auto sitr = schedule_idx.begin();
-         while( sitr != schedule_idx.end() && sitr->pow_worker ) ++sitr;
+         /// don't consider the pow workers or top 19 for the purpose of virtual time scheduling
+         while( sitr != schedule_idx.end() && ( sitr->pow_worker ||
+               std::find( active_witnesses.begin(), active_witnesses.end(), sitr->owner ) != active_witnesses.end() ) )
+            ++sitr;
 
          if( sitr != schedule_idx.end() ) {
             active_witnesses.push_back(sitr->owner);
             modify( *sitr, [&]( witness_object& wo ) {
                wo.virtual_position = fc::uint128();
-               new_virtual_time = wo.virtual_scheduled_time; /// everyone advances to this time
+               if( new_virtual_time < wo.virtual_scheduled_time )
+                  new_virtual_time = wo.virtual_scheduled_time; /// everyone advances to this time
+                                                                /// except the skipped pow workers
+                                                                ///    and the voted-out top 19 ones
 
                /// extra cautious sanity check... we should never end up here if witnesses are
                /// properly voted on. TODO: remove this line if it is not triggered and therefore
@@ -929,7 +931,8 @@ void database::update_witness_schedule()
                    new_virtual_time = fc::uint128();
 
                /// this witness will produce again here
-               wo.virtual_scheduled_time += VIRTUAL_SCHEDULE_LAP_LENGTH / (wo.votes.value+1);
+               wo.virtual_scheduled_time = new_virtual_time + VIRTUAL_SCHEDULE_LAP_LENGTH / (wo.votes.value+1);
+               wo.virtual_last_update = new_virtual_time;
             });
          }
       }
