@@ -80,6 +80,7 @@ void database::open( const fc::path& data_dir, uint64_t initial_supply )
       init_hardforks();
 
       fc::optional<signed_block> last_block = _block_id_to_block.last();
+      idump((last_block));
       if( last_block.valid() )
       {
          _fork_db.start_block( *last_block );
@@ -171,7 +172,7 @@ void database::reindex(fc::path data_dir )
       }
       else
       {
-         _fork_db.start_block( *_block_id_to_block.fetch_by_number( last_block_num_in_file ) );
+         //_fork_db.start_block( *_block_id_to_block.fetch_by_number( last_block_num_in_file ) );
       }
       _undo_db.enable();
 
@@ -2920,6 +2921,9 @@ void database::init_hardforks()
 
    const auto& hardforks = hardfork_property_id_type()( *this );
    FC_ASSERT( hardforks.last_hardfork <= STEEMIT_NUM_HARDFORKS, "Chain knows of more hardforks than configuration", ("hardforks.last_hardfork",hardforks.last_hardfork)("STEEMIT_NUM_HARDFORKS",STEEMIT_NUM_HARDFORKS) );
+   idump(( hardforks ));
+   idump(( hardforks.last_hardfork - 1 ));
+   idump(( _hardfork_times[ hardforks.last_hardfork - 1 ] ));
    if( hardforks.last_hardfork >= 0 )
       FC_ASSERT( _hardfork_times[ hardforks.last_hardfork - 1 ] <= head_block_time(), "Configuration has future hardfork set that chain has already applied." );
    if( hardforks.last_hardfork + 1 < STEEMIT_NUM_HARDFORKS )

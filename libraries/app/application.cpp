@@ -617,8 +617,10 @@ namespace detail {
           uint32_t low_block_num = _chain_db->last_non_undoable_block_num();
           std::vector<block_id_type> fork_history;
 
+          idump((reference_point));
           if (reference_point != item_hash_t())
           {
+//try{
             // the node is asking for a summary of the block chain up to a specified
             // block, which may or may not be on a fork
             // for now, assume it's not on a fork
@@ -630,6 +632,7 @@ namespace detail {
               high_block_num = reference_point_block_num;
               non_fork_high_block_num = high_block_num;
 
+              idump((reference_point_block_num)(non_fork_high_block_num)(low_block_num)(high_block_num));
               if (reference_point_block_num < low_block_num)
               {
                 // we're on the same fork (at least as far as reference_point) but we've passed
@@ -670,6 +673,7 @@ namespace detail {
                   non_fork_high_block_num = block_header::num_from_id(last_non_fork_block);
 
                 high_block_num = non_fork_high_block_num + fork_history.size();
+                idump((non_fork_high_block_num)(fork_history.size())(high_block_num));
                 assert(high_block_num == block_header::num_from_id(fork_history.back()));
               }
               catch (const fc::exception& e)
@@ -679,6 +683,7 @@ namespace detail {
                 elog("Unable to construct a blockchain synopsis for reference hash ${hash}: ${exception}", ("hash", reference_point)("exception", e));
                 throw;
               }
+              //FC_CAPTURE_LOG_AND_RETHROW((fork_history.size()));
               if (non_fork_high_block_num < low_block_num)
               {
                 wlog("Unable to generate a usable synopsis because the peer we're generating it for forked too long ago "
@@ -688,15 +693,25 @@ namespace detail {
                 FC_THROW_EXCEPTION(graphene::net::block_older_than_undo_history, "Peer is are on a fork I'm unable to switch to");
               }
             }
+//              } FC_CAPTURE_LOG_AND_RETHROW(("1")(high_block_num)(low_block_num));
+            idump( ("1")(high_block_num)(low_block_num) );
           }
           else
           {
             // no reference point specified, summarize the whole block chain
             high_block_num = _chain_db->head_block_num();
             non_fork_high_block_num = high_block_num;
+            idump( ("2")(high_block_num) );
             if (high_block_num == 0)
               return synopsis; // we have no blocks
+            else
+              low_block_num = 1;
+            idump( ("2")(high_block_num)(low_block_num) );
           }
+          idump( ("3")(high_block_num)(low_block_num) );
+          if( low_block_num == 0 )
+            low_block_num = 1;
+          idump( ("4")(high_block_num)(low_block_num) );
 
           // at this point:
           // low_block_num is the block before the first block we can undo,

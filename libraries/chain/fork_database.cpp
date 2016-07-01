@@ -50,10 +50,12 @@ void  fork_database::_push_block(const item_ptr& item)
 {
    if( _head ) // make sure the block is within the range that we are caching
    {
+      idump((_head->num));
       FC_ASSERT( item->num > std::max<int64_t>( 0, int64_t(_head->num) - (_max_size) ),
                  "attempting to push a block that is too old",
                  ("item->num",item->num)("head",_head->num)("max_size",_max_size));
    }
+   else idump(("no head"));
 
    if( _head && item->previous_id() != block_id_type() )
    {
@@ -177,15 +179,58 @@ pair<fork_database::branch_type,fork_database::branch_type>
    // This function gets a branch (i.e. vector<fork_item>) leading
    // back to the most recent common ancestor.
    pair<branch_type,branch_type> result;
+   auto first_block_num = block_header::num_from_id( first );
+   auto second_block_num = block_header::num_from_id( second );
+   //if( first_block_num == 0 && second_block_num == 0 )
+   //   return result;
+
    auto first_branch_itr = _index.get<block_id>().find(first);
-   FC_ASSERT(first_branch_itr != _index.get<block_id>().end());
-   auto first_branch = *first_branch_itr;
+   //FC_ASSERT( first_block_num == 0 || first_branch_itr != _index.get<block_id>().end() );
+   FC_ASSERT( first_branch_itr != _index.get<block_id>().end() );
 
    auto second_branch_itr = _index.get<block_id>().find(second);
-   FC_ASSERT(second_branch_itr != _index.get<block_id>().end());
+   //FC_ASSERT( second_block_num == 0 || second_branch_itr != _index.get<block_id>().end() );
+   FC_ASSERT( second_branch_itr != _index.get<block_id>().end() );
+/*
+   if( first_block_num == 0 )
+   {
+      auto second_branch = *second_branch_itr;
+      while( true )
+      {
+         result.second.push_back( second_branch );
+         if( second_block_num <= 1 )
+            break;
+         else
+         {
+            second_branch = second_branch->prev.lock();
+            FC_ASSERT(second_branch);
+            second_block_num--;
+         }
+      }
+      return result;
+   }
+
+   if( second_block_num == 0 )
+   {
+      auto first_branch = *first_branch_itr;
+      while( true )
+      {
+         idump((first_block_num)(first_branch->data.block_num()));
+         result.first.push_back( first_branch );
+         if( first_block_num <= 1 )
+            break;
+         else
+         {
+            first_branch = first_branch->prev.lock();
+            FC_ASSERT(first_branch);
+            first_block_num--;
+         }
+      }
+      return result;
+   }
+*/
+   auto first_branch = *first_branch_itr;
    auto second_branch = *second_branch_itr;
-
-
    while( first_branch->data.block_num() > second_branch->data.block_num() )
    {
       result.first.push_back(first_branch);
