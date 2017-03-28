@@ -492,7 +492,7 @@ namespace detail {
                if( !sync_mode )
                {
                   fc::microseconds latency = fc::time_point::now() - blk_msg.block.timestamp;
-                  ilog( "Got ${t} transactions on block ${b} by ${w} -- latency: ${l} ms",
+                  ilog( "Got ${t} trx on block ${b} by ${w} -- ${l} ms",
                      ("t", blk_msg.block.transactions.size())
                      ("b", blk_msg.block.block_num())
                      ("w", blk_msg.block.witness)
