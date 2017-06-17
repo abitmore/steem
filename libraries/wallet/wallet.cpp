@@ -694,10 +694,11 @@ public:
 
       if( broadcast ) {
          try {
-            auto result = _remote_net_broadcast->broadcast_transaction_synchronous( tx );
+            //auto result = _remote_net_broadcast->broadcast_transaction_synchronous( tx );
+            _remote_net_broadcast->broadcast_transaction( tx );
             annotated_signed_transaction rtrx(tx);
-            rtrx.block_num = result.get_object()["block_num"].as_uint64();
-            rtrx.transaction_num = result.get_object()["trx_num"].as_uint64();
+            //rtrx.block_num = result.get_object()["block_num"].as_uint64();
+            //rtrx.transaction_num = result.get_object()["trx_num"].as_uint64();
             return rtrx;
          }
          catch (const fc::exception& e)
