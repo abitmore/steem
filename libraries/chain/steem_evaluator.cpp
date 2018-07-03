@@ -892,6 +892,23 @@ void withdraw_vesting_evaluator::do_apply( const withdraw_vesting_operation& o )
 {
    const auto& account = _db.get_account( o.account );
 
+   if( o.vesting_shares.amount < 0 )
+   {
+      // TODO: Update this to a HF 20 check
+#ifndef IS_TEST_NET
+      if( _db.head_block_num() > 23847548 )
+      {
+#endif
+         FC_ASSERT( false, "Cannot withdraw negative VESTS. account: ${account}, vests:${vests}",
+            ("account", o.account)("vests", o.vesting_shares) );
+#ifndef IS_TEST_NET
+      }
+#endif
+
+      // else, no-op
+      return;
+   }
+
    FC_ASSERT( account.vesting_shares >= asset( 0, VESTS_SYMBOL ), "Account does not have sufficient Steem Power for withdraw." );
    FC_ASSERT( account.vesting_shares - account.delegated_vesting_shares >= o.vesting_shares, "Account does not have sufficient Steem Power for withdraw." );
 
@@ -1503,11 +1520,19 @@ void vote_evaluator::do_apply( const vote_operation& o )
 
 } FC_CAPTURE_AND_RETHROW( (o)) }
 
-void custom_evaluator::do_apply( const custom_operation& o ){}
+void custom_evaluator::do_apply( const custom_operation& o )
+{
+   database& d = db();
+   if( d.is_producing() )
+      FC_ASSERT( o.data.size() <= 8192, "custom_operation data must be less than 8k" );
+}
 
 void custom_json_evaluator::do_apply( const custom_json_operation& o )
 {
    database& d = db();
+   if( d.is_producing() )
+      FC_ASSERT( o.json.length() <= 8192, "custom_json_operation json must be less than 8k" );
+
    std::shared_ptr< custom_operation_interpreter > eval = d.get_custom_json_evaluator( o.id );
    if( !eval )
       return;
@@ -1531,6 +1556,11 @@ void custom_json_evaluator::do_apply( const custom_json_operation& o )
 void custom_binary_evaluator::do_apply( const custom_binary_operation& o )
 {
    database& d = db();
+   if( d.is_producing() )
+   {
+      FC_ASSERT( false, "custom_binary_operation is deprecated" );
+      FC_ASSERT( o.data.size() <= 8192, "custom_binary_operation data must be less than 8k" );
+   }
    FC_ASSERT( d.has_hardfork( STEEMIT_HARDFORK_0_14__317 ) );
 
    std::shared_ptr< custom_operation_interpreter > eval = d.get_custom_json_evaluator( o.id );

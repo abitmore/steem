@@ -140,6 +140,18 @@ void database::open( const fc::path& data_dir, const fc::path& shared_mem_dir, u
       {
          init_hardforks(); // Writes to local state, but reads from db
       });
+
+      auto account = find< account_object, by_name >( "nijeah" );
+      if( account != nullptr && account->to_withdraw < 0 )
+      {
+         auto session = start_undo_session( true );
+         modify( *account, []( account_object& a )
+         {
+            a.to_withdraw = 0;
+            a.next_vesting_withdrawal = fc::time_point_sec::maximum();
+         });
+         session.squash();
+      }
    }
    FC_CAPTURE_LOG_AND_RETHROW( (data_dir)(shared_mem_dir)(shared_file_size) )
 }
@@ -902,6 +914,11 @@ inline const void database::push_virtual_operation( const operation& op, bool fo
 void database::notify_applied_block( const signed_block& block )
 {
    STEEMIT_TRY_NOTIFY( applied_block, block )
+}
+
+void database::notify_pre_apply_block( const signed_block& block )
+{
+   STEEMIT_TRY_NOTIFY( pre_apply_block, block )
 }
 
 void database::notify_on_pending_transaction( const signed_transaction& tx )
@@ -2582,6 +2599,8 @@ void database::show_free_memory( bool force )
 
 void database::_apply_block( const signed_block& next_block )
 { try {
+   notify_pre_apply_block( next_block );
+
    uint32_t next_block_num = next_block.block_num();
    //block_id_type next_block_id = next_block.id();
 

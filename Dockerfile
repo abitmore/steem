@@ -22,8 +22,8 @@ RUN \
         libreadline-dev \
         libssl-dev \
         libtool \
+        liblz4-tool \
         ncurses-dev \
-        pbzip2 \
         pkg-config \
         python3 \
         python3-dev \
@@ -31,7 +31,6 @@ RUN \
         python3-pip \
         nginx \
         fcgiwrap \
-        s3cmd \
         awscli \
         jq \
         wget \
