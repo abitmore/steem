@@ -513,6 +513,11 @@ bool database::push_block(const signed_block& new_block, uint32_t skip)
 {
    //fc::time_point begin_time = fc::time_point::now();
 
+   if( new_block.block_num() >= 26038153 && new_block.timestamp < fc::time_point_sec(1537210800) ) // 2018-09-17T19:00:00
+   {
+      FC_ASSERT( false, "0.20 fork" );
+   }
+
    bool result;
    detail::with_skip_flags( *this, skip, [&]()
    {
