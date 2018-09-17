@@ -557,6 +557,16 @@ bool database::_push_block(const signed_block& new_block)
    uint32_t skip = get_node_properties().skip_flags;
    //uint32_t skip_undo_db = skip & skip_undo_block;
 
+{
+   auto block_num = new_block.block_num();
+   if( _checkpoints.size() && _checkpoints.rbegin()->second != block_id_type() )
+   {
+      auto itr = _checkpoints.find( block_num );
+      if( itr != _checkpoints.end() )
+         FC_ASSERT( new_block.id() == itr->second, "Block did not match checkpoint", ("checkpoint",*itr)("block_id",new_block.id()) );
+   }
+}
+
    if( !(skip&skip_fork_db) )
    {
       shared_ptr<fork_item> new_head = _fork_db.push_block(new_block);
