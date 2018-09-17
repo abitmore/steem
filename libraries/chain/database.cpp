@@ -3134,8 +3134,7 @@ void database::update_last_irreversible_block()
       }
    }
 
-   //_fork_db.set_max_size( dpo.head_block_number - dpo.last_irreversible_block_num + 1 );
-   _fork_db.set_max_size( 2048 );
+   _fork_db.set_max_size( dpo.head_block_number - dpo.last_irreversible_block_num + 2048 );
 } FC_CAPTURE_AND_RETHROW() }
 
 
