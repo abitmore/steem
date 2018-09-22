@@ -729,10 +729,11 @@ public:
       {
          try
          {
-            auto result = _remote_api->broadcast_transaction_synchronous( condenser_api::legacy_signed_transaction( tx ) );
+            //auto result = _remote_api->broadcast_transaction_synchronous( condenser_api::legacy_signed_transaction( tx ) );
+            _remote_api->broadcast_transaction( condenser_api::legacy_signed_transaction( tx ) );
             annotated_signed_transaction rtrx(tx);
-            rtrx.block_num = result.block_num;
-            rtrx.transaction_num = result.trx_num;
+            //rtrx.block_num = result.block_num;
+            //rtrx.transaction_num = result.trx_num;
             return rtrx;
          }
          catch (const fc::exception& e)
