@@ -205,7 +205,7 @@ bool p2p_plugin_impl::handle_block( const graphene::net::block_message& blk_msg,
          {
             fc::microseconds offset = fc::time_point::now() - blk_msg.block.timestamp;
             STATSD_TIMER( "p2p", "offset", "block_arrival", offset, 1.0f )
-            ilog( "Got ${t} transactions on block ${b} by ${w} -- Block Time Offset: ${l} ms",
+            ilog( "Got ${t} trx on block ${b} by ${w} -- Offset: ${l} ms",
                ("t", blk_msg.block.transactions.size())
                ("b", blk_msg.block.block_num())
                ("w", blk_msg.block.witness)
