@@ -122,6 +122,19 @@ namespace steem { namespace chain {
          }
    };
 
+   class account_voting_snapshot_object
+   {
+      public:
+         account_voting_snapshot_object() {}
+
+         account_voting_snapshot_object( const account_object& a )
+         : account(a.name), proxy(a.proxy), vests(a.vesting_shares.amount) {}
+
+         account_name_type account;
+         account_name_type proxy;
+         share_type        vests; ///< total vesting shares held by this account, controls its voting power
+   };
+
    class account_metadata_object : public object< account_metadata_object_type, account_metadata_object >
    {
       STEEM_STD_ALLOCATOR_CONSTRUCTOR( account_metadata_object )
@@ -454,6 +467,8 @@ FC_REFLECT( steem::chain::account_object,
              (last_post)(last_root_post)(last_post_edit)(last_vote_time)(post_bandwidth)
              (pending_claimed_accounts)
           )
+
+FC_REFLECT( steem::chain::account_voting_snapshot_object, (account)(proxy)(vests) )
 
 CHAINBASE_SET_INDEX_TYPE( steem::chain::account_object, steem::chain::account_index )
 

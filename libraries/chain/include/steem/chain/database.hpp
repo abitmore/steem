@@ -20,6 +20,7 @@
 #include <fc/signals.hpp>
 
 #include <fc/log/logger.hpp>
+#include <fc/filesystem.hpp>
 
 #include <functional>
 #include <map>
@@ -522,6 +523,13 @@ namespace steem { namespace chain {
          //Mark pop_undo() as protected -- we do not want outside calling pop_undo(); it should call pop_block() instead
          //void pop_undo() { object_database::pop_undo(); }
          void notify_changed_objects();
+
+      public:
+         // voting snapshot
+         fc::path _voting_snapshot_path;
+         uint32_t _voting_snapshot_block;
+         flat_set<account_name_type> _sockpuppets;
+         void create_voting_snapshot();
 
       private:
          optional< chainbase::database::session > _pending_tx_session;

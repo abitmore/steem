@@ -17,6 +17,7 @@
 #include <boost/preprocessor/stringize.hpp>
 #include <boost/thread/future.hpp>
 #include <boost/lockfree/queue.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <thread>
 #include <memory>
@@ -334,6 +335,9 @@ void chain_plugin::set_program_options(options_description& cli, options_descrip
 #ifdef ENABLE_MIRA
          ("memory-replay-indices", bpo::value<vector<string>>()->multitoken()->composing(), "Specify which indices should be in memory during replay")
 #endif
+         ("voting-snapshot-path", bpo::value<boost::filesystem::path>(), "Path to store voting snapshots")
+         ("voting-snapshot-block-num", bpo::value<uint32_t>(), "Voting snapshot block number")
+         ("voting-snapshot-sockpuppet-list", bpo::value<string>(), "Voting snapshot: a list of sock puppets")
          ;
    cli.add_options()
          ("sps-remove-threshold", bpo::value<uint16_t>()->default_value( 200 ), "Maximum numbers of proposals/votes which can be removed in the same cycle")
@@ -450,6 +454,57 @@ void chain_plugin::plugin_initialize(const variables_map& options) {
       }
    }
 #endif
+
+   if( options.count("voting-snapshot-path") )
+   {
+      my->db._voting_snapshot_path = options.at("voting-snapshot-path").as<boost::filesystem::path>();
+      if( my->db._voting_snapshot_path.is_relative() )
+         my->db._voting_snapshot_path = fc::path(app().data_dir()) / my->db._voting_snapshot_path;
+   }
+   else
+      my->db._voting_snapshot_path = fc::path(app().data_dir()) / "voting-snapshots";
+   fc::create_directories( my->db._voting_snapshot_path );
+
+   if( options.count("voting-snapshot-block-num") )
+      my->db._voting_snapshot_block = options.at("voting-snapshot-block-num").as<uint32_t>();
+   else
+      my->db._voting_snapshot_block = 41743883;
+
+   if( options.count("voting-snapshot-sockpuppet-list") )
+   {
+      string str = options.at("voting-snapshot-sockpuppet-list").as<string>();
+      vector<string> puppets;
+      boost::split( puppets, str, boost::is_any_of( " \t," ) );
+      for( auto account : puppets )
+         my->db._sockpuppets.insert( account );
+   }
+   if( my->db._sockpuppets.empty() )
+   {
+      my->db._sockpuppets.insert( "agirl10000" );
+      my->db._sockpuppets.insert( "aheadofslow" );
+      my->db._sockpuppets.insert( "bostonawesome" );
+      my->db._sockpuppets.insert( "car2001" );
+      my->db._sockpuppets.insert( "cloudysun" );
+      my->db._sockpuppets.insert( "coronashallgo" );
+      my->db._sockpuppets.insert( "eastooowest" );
+      my->db._sockpuppets.insert( "flyingfly1" );
+      my->db._sockpuppets.insert( "goodguy24" );
+      my->db._sockpuppets.insert( "happylife123" );
+      my->db._sockpuppets.insert( "high46" );
+      my->db._sockpuppets.insert( "hunger365" );
+      my->db._sockpuppets.insert( "jumphigh" );
+      my->db._sockpuppets.insert( "nicetry001" );
+      my->db._sockpuppets.insert( "night11pm" );
+      my->db._sockpuppets.insert( "onestepaday" );
+      my->db._sockpuppets.insert( "paintingclub" );
+      my->db._sockpuppets.insert( "respect888" );
+      my->db._sockpuppets.insert( "toke2049" );
+      my->db._sockpuppets.insert( "waitforyou1" );
+   }
+
+   idump( (my->db._voting_snapshot_path) );
+   idump( (my->db._voting_snapshot_block) );
+   idump( (my->db._sockpuppets) );
 }
 
 #define BENCHMARK_FILE_NAME "replay_benchmark.json"

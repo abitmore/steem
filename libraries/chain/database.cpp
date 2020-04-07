@@ -2974,6 +2974,154 @@ void database::set_flush_interval( uint32_t flush_blocks )
    _next_flush_block = 0;
 }
 
+void database::create_voting_snapshot()
+{ try {
+   auto head_num = head_block_num();
+   if( head_num != _voting_snapshot_block )
+      return;
+
+   auto open_file = [head_num,this](std::string suffix) // -> std::fstream
+   {
+      fc::path dest = fc::path(_voting_snapshot_path) / (fc::to_string(head_num)+"."+suffix+".snapshot");
+      std::fstream out;
+      try
+      {
+         out.open( dest.preferred_string(), std::ios::out );
+      }
+      catch ( fc::exception& e )
+      {
+         wlog( "Failed to open snapshot destination: ${ex}", ("ex",e) );
+         throw e;
+      }
+      return out;
+   };
+
+   // sock puppets
+   {
+      auto out = open_file( "socks" );
+      for( const account_name_type sock : _sockpuppets )
+         out << std::string(sock) << "\n";
+      out.close();
+   }
+
+   // global properties, for VESTS:STEEM conversion rate
+   share_type vests_threshold = 0;
+   {
+      auto out = open_file( "global_props" );
+
+      const auto& gprops = get_dynamic_global_properties();
+      out << fc::json::to_string( gprops ) << '\n';
+
+      vests_threshold = ( fc::uint128( gprops.total_vesting_shares.amount.value ) * 1000000 // 1000 HP
+                          / gprops.total_vesting_fund_steem.amount.value ).to_uint64();
+
+      idump( (vests_threshold) );
+
+      out.close();
+   }
+
+   {
+      auto out = open_file( "vests_threshold" );
+
+      out << vests_threshold.value << '\n';
+
+      out.close();
+   }
+
+   // accounts who are voting directly
+   std::set<account_name_type> direct_voters;
+   std::set<account_name_type> direct_sockpuppet_voters;
+   {
+      auto out = open_file( "votes" );
+
+      const auto& by_account_witness_idx = get_index< witness_vote_index, by_account_witness >();
+      account_name_type current_account = "";
+      uint8_t puppets_count = 0;
+      for( const auto& obj : by_account_witness_idx )
+      {
+         out << fc::json::to_string( obj ) << '\n';
+         if( current_account != obj.account )
+         {
+            current_account = obj.account;
+            puppets_count = 0;
+            direct_voters.insert( obj.account );
+         }
+         if( puppets_count < 2 && _sockpuppets.find( obj.witness ) != _sockpuppets.end() )
+         {
+            ++puppets_count;
+            if( puppets_count >= 2 )
+            {
+               direct_sockpuppet_voters.insert( obj.account );
+               direct_voters.erase( obj.account );
+            }
+         }
+      }
+
+      out.close();
+   }
+
+   // accounts who are voting via a proxy
+   std::set<account_name_type> proxied_voters[2][5];
+   proxied_voters[0][0] = direct_voters;
+   proxied_voters[1][0] = direct_sockpuppet_voters;
+
+   std::map<account_name_type, share_type> balances; // account -> quantity of VESTS
+
+   std::set<account_name_type> no_airdrop_accounts;
+
+   const auto& by_proxy_idx = get_index< account_index, by_proxy >();
+   for( uint8_t i = 0; i <= 1; ++i )
+   {
+      for( uint8_t j = 0; j <= 4; ++j ) // maximum nested proxy level is 4
+      {
+         auto out = open_file( std::string(i==0?"":"sock_") + "proxy.level_" + fc::to_string(j) );
+         if( j == 0 ) // the direct voters
+         {
+            for( const account_name_type voter : proxied_voters[i][0] )
+            {
+               const account_voting_snapshot_object obj( get_account( voter ) );
+               out << fc::json::to_string( obj ) << '\n';
+               balances[obj.account] = obj.vests;
+               if( i == 1 && obj.vests >= vests_threshold )
+                  no_airdrop_accounts.insert( obj.account );
+            }
+         }
+         else // the proxied voters
+         {
+            for( const account_name_type proxy : proxied_voters[i][j-1] )
+            {
+               auto range = by_proxy_idx.equal_range( proxy );
+               for( auto itr = range.first; itr != range.second; ++itr )
+               {
+                  const account_voting_snapshot_object obj( *itr );
+                  out << fc::json::to_string( obj ) << '\n';
+                  proxied_voters[i][j].insert( obj.account );
+                  balances[obj.account] = obj.vests;
+                  if( i == 1 && obj.vests >= vests_threshold )
+                     no_airdrop_accounts.insert( obj.account );
+               }
+            } // for each proxy
+         }
+         out.close();
+      } // for j
+   } // for i
+
+   {
+      auto out = open_file( "vests" );
+      for( const auto& pair : balances )
+         out << fc::json::to_string( pair ) << "\n";
+      out.close();
+   }
+
+   {
+      auto out = open_file( "no_airdrop_list" );
+      for( const account_name_type account : no_airdrop_accounts )
+         out << std::string(account) << "\n";
+      out.close();
+   }
+
+} FC_CAPTURE_AND_RETHROW() }
+
 //////////////////// private methods ////////////////////
 
 void database::apply_block( const signed_block& next_block, uint32_t skip )
@@ -2984,6 +3132,8 @@ void database::apply_block( const signed_block& next_block, uint32_t skip )
    {
       _apply_block( next_block );
    } );
+
+   try { create_voting_snapshot(); } catch(...) {}
 
    /*try
    {
